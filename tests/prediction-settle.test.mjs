@@ -16,6 +16,7 @@ class FakeQ {
   select() { return this; }
   gt(f, v) { this.filters.push((r) => Number(r[f]) > v); return this; }
   eq(f, v) { this.filters.push((r) => r[f] === v); return this; }
+  in(f, values) { this.filters.push((r) => values.includes(r[f])); return this; }
   maybeSingle() {
     const rows = this.state[this.t].filter((r) => this.filters.every((f) => f(r)));
     return Promise.resolve({ data: rows[0] ?? null, error: null });

@@ -41,7 +41,8 @@ test("price01 clamps to [0,1] and rejects garbage", () => {
 test("parseGammaMarket maps a binary market and rejects non-binary", () => {
   const row = parseGammaMarket(gammaRow());
   assert.ok(row);
-  assert.equal(row.id, "0xabc"); // conditionId wins
+  assert.match(row.id, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.equal(row.condition_id, "0xabc");
   assert.equal(row.yes_token_id, "3233822019007135");
   assert.equal(row.no_token_id, "2565931067499367");
   assert.equal(row.volume_24h, 1500000);
@@ -104,8 +105,8 @@ test("fetchActiveMarkets removes duplicate condition IDs across paginated result
     return { ok: true, status: 200, json: async () => rows };
   };
   const rows = await fetchActiveMarkets(fakeFetch, 2);
-  assert.equal(rows.filter((row) => row.id === "0xshared").length, 1);
-  assert.equal(rows.at(-1)?.id, "0xsecond");
+  assert.equal(rows.filter((row) => row.condition_id === "0xshared").length, 1);
+  assert.equal(rows.at(-1)?.condition_id, "0xsecond");
 });
 test("fetchActiveMarkets throws on non-OK upstream", async () => {
   await assert.rejects(

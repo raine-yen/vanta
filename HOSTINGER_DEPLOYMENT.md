@@ -1,6 +1,6 @@
 # Vanta on Hostinger
 
-Vanta runs one public Express process for `/api/*` and `/v2/*`; it starts the existing Next.js frontend with `next start` on a private loopback port. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`.
+Vanta runs one public Express process for `/api/*` and `/v2/*`; it starts the existing Next.js frontend with `next start` on a private loopback port. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`. Internal database IDs are `CHAR(36)`; Polymarket condition IDs are stored separately as external keys.
 
 ## 1. Prepare the repository and hosting plan
 

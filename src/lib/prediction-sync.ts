@@ -2,11 +2,20 @@
 // binary-outcome quotes. The db handle is duck-typed (a query-builder-like
 // object) and fetch is injectable, so every code path is unit-testable with
 // fakes — production callers pass mysqlAdmin() and global fetch.
+import { createHash } from "node:crypto";
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
+/** Stable internal UUID for an external Polymarket condition ID. */
+export function marketUuid(conditionId: string): string {
+  const hex = createHash("sha256").update(`vanta:prediction:${conditionId}`).digest("hex");
+  const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
 export interface PredictionMarketRow {
   id: string;
+  condition_id: string;
   question: string;
   category: string | null;
   event_slug?: string | null;
@@ -113,9 +122,9 @@ export async function fetchUpstreamPredictionMarketState(
 
 /** Parse one Gamma market into a catalog row. Returns null for malformed rows. */
 export function parseGammaMarket(raw: GammaMarket): PredictionMarketRow | null {
-  const id = String(raw.conditionId ?? raw.id ?? "").trim();
+  const conditionId = String(raw.conditionId ?? raw.id ?? "").trim();
   const question = String(raw.question ?? "").trim();
-  if (!id || !question) return null;
+  if (!conditionId || !question) return null;
   // Binary markets may be phrased Yes/No or name two competing outcomes.
   const tokens = parseJsonArray(raw.clobTokenIds);
   const prices = parseJsonArray(raw.outcomePrices);
@@ -124,7 +133,8 @@ export function parseGammaMarket(raw: GammaMarket): PredictionMarketRow | null {
   const yesPrice = price01(prices[0]);
   const noPrice = price01(prices[1]);
   return {
-    id,
+    id: marketUuid(conditionId),
+    condition_id: conditionId,
     question,
     category: raw.category ? String(raw.category) : null,
     event_slug: raw.slug ? String(raw.slug) : null,

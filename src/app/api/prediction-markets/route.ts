@@ -10,7 +10,7 @@ import {
 import { predictionOutcomeLabels } from "@/lib/prediction-presentation";
 
 export interface PredictionMarket {
-  id: string; // condition id (catalog PK; matches /api/predictions/* routes)
+  id: string; // Internal market UUID (catalog PK; matches /api/predictions/* routes)
   question: string;
   category: string | null;
   tags?: string[];

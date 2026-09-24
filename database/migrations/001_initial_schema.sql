@@ -271,8 +271,10 @@ CREATE TABLE IF NOT EXISTS leader_history (
   FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Internal IDs are CHAR(36); the upstream Polymarket condition key is separate.
 CREATE TABLE IF NOT EXISTS prediction_markets (
-  id VARCHAR(255) PRIMARY KEY,
+  id CHAR(36) PRIMARY KEY,
+  condition_id VARCHAR(255) NOT NULL UNIQUE,
   question TEXT NOT NULL,
   category VARCHAR(100),
   yes_token_id VARCHAR(255), no_token_id VARCHAR(255),
@@ -294,7 +296,7 @@ CREATE TABLE IF NOT EXISTS prediction_markets (
 CREATE TABLE IF NOT EXISTS prediction_positions (
   id CHAR(36) PRIMARY KEY,
   account_id CHAR(36) NOT NULL,
-  market_id VARCHAR(255) NOT NULL,
+  market_id CHAR(36) NOT NULL,
   outcome ENUM('yes','no') NOT NULL,
   shares DECIMAL(20,8) NOT NULL DEFAULT 0,
   avg_cost DECIMAL(12,8) NOT NULL DEFAULT 0,
@@ -309,7 +311,7 @@ CREATE TABLE IF NOT EXISTS prediction_positions (
 CREATE TABLE IF NOT EXISTS prediction_fills (
   id CHAR(36) PRIMARY KEY,
   account_id CHAR(36) NOT NULL,
-  market_id VARCHAR(255) NOT NULL,
+  market_id CHAR(36) NOT NULL,
   outcome ENUM('yes','no') NOT NULL,
   side ENUM('buy','sell','settle') NOT NULL,
   shares DECIMAL(20,8) NOT NULL,

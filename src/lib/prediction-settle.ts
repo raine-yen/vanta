@@ -50,10 +50,19 @@ export async function settlePredictionMarkets(
   const result: SettleResult = { marketsChecked: marketIds.length, marketsResolved: 0, payouts: 0 };
   if (marketIds.length === 0) return result;
 
+  const { data: marketRows, error: marketError } = await db
+    .from("prediction_markets")
+    .select("id, condition_id")
+    .in("id", marketIds);
+  if (marketError) throw new Error(`markets lookup failed: ${marketError.message ?? "unknown"}`);
+  const marketIdByCondition = new Map<string, string>();
+  for (const market of marketRows ?? []) marketIdByCondition.set(market.condition_id ?? market.id, market.id);
+
   // Ask Gamma about these specific markets. Chunk to keep URLs sane.
   const resolved = new Map<string, "yes" | "no">();
-  for (let i = 0; i < marketIds.length; i += 20) {
-    const chunk = marketIds.slice(i, i + 20);
+  const conditionIds = Array.from(marketIdByCondition.keys());
+  for (let i = 0; i < conditionIds.length; i += 20) {
+    const chunk = conditionIds.slice(i, i + 20);
     const url = `https://gamma-api.polymarket.com/markets?closed=true&limit=${chunk.length}&${chunk.map((id) => `condition_ids=${encodeURIComponent(id)}`).join("&")}`;
     try {
       const res = await fetchImpl(url, { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" } });
@@ -61,7 +70,10 @@ export async function settlePredictionMarkets(
       const rows = (await res.json()) as Array<{ conditionId?: string } & Parameters<typeof gammaWinner>[0]>;
       for (const row of rows) {
         const winner = gammaWinner(row);
-        if (row.conditionId && winner) resolved.set(row.conditionId, winner);
+        if (row.conditionId && winner) {
+          const internalId = marketIdByCondition.get(row.conditionId);
+          if (internalId) resolved.set(internalId, winner);
+        }
       }
     } catch {
       /* network blip — next pass retries */
