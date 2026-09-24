@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchYahooPrices } from "@/lib/prices";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { supabaseServer } from "@/lib/supabase/server";
+import { mysqlAdmin } from "@/lib/mysql/admin";
+import { mysqlServer } from "@/lib/mysql/server";
 
 const PEEK_FEE = 10000;
 
 export async function POST(req: NextRequest) {
-  const sb = await supabaseServer();
+  const sb = await mysqlServer();
   const { data: ud } = await sb.auth.getUser();
   if (!ud.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "account_id required" }, { status: 400 });
   }
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data: viewer } = await db
     .from("accounts")
     .select("*")

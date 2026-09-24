@@ -1,6 +1,3 @@
-export const ADMIN_EMAILS = ["shawny3n@gmail.com", "raine_yen@outlook.com"] as const;
-
-export function isAdminEmail(email?: string | null) {
-  if (!email) return false;
-  return ADMIN_EMAILS.includes(email.toLowerCase() as (typeof ADMIN_EMAILS)[number]);
+export function hasAdminRole(role?: string | null) {
+  return role === "owner" || role === "manager";
 }

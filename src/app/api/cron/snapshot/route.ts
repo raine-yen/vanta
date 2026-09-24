@@ -3,8 +3,8 @@ import { takeSnapshots } from "@/lib/engine";
 
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  const expected = `Bearer ${process.env.CRON_SECRET ?? ""}`;
-  if (process.env.CRON_SECRET && auth !== expected) {
+  const expected = process.env.CRON_SECRET;
+  if (!expected || auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {

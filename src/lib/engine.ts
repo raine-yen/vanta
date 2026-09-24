@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
+import { randomUUID } from "node:crypto";
+import { execute, query, transaction } from "@/lib/mysql";
 import { fetchYahooPrices, getPrice } from "@/lib/prices";
 import type { Order, Position, Account, OrderSide, OrderType } from "@/lib/types";
 
@@ -25,7 +27,7 @@ export interface PlaceOrderResult {
  * Cash & position checks happen up front (best-effort optimistic locking via DB checks).
  */
 export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResult> {
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const symbol = input.symbol.toUpperCase();
   const qty = Number(input.qty);
 
@@ -104,7 +106,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   }
 
   if (orderErr || !orderRow) {
-    if (orderErr?.code === "23505" && input.client_order_id) {
+    if ((orderErr?.code === "ER_DUP_ENTRY" || orderErr?.code === "23505") && input.client_order_id) {
       const { data: existing } = await db
         .from("orders")
         .select("*")
@@ -151,120 +153,53 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
  * Atomically updates cash, position, fills, and the order row.
  */
 export async function fillOrder(order: Order, price: number): Promise<Order | null> {
-  const db = supabaseAdmin();
-  const qty = Number(order.qty);
-  const notional = qty * price;
-  const now = new Date().toISOString();
+  if (!Number.isFinite(price) || price <= 0) return null;
+  try {
+    return await transaction(async (connection) => {
+      const lockedOrder = (await query<Order>("SELECT * FROM orders WHERE id = ? FOR UPDATE", [order.id], connection))[0];
+      if (!lockedOrder || lockedOrder.status !== "new") return null;
+      const qty = Number(lockedOrder.qty);
+      const notional = qty * price;
+      const acct = (await query<Account>("SELECT * FROM accounts WHERE id = ? FOR UPDATE", [lockedOrder.account_id], connection))[0];
+      if (!acct || acct.status !== "active") return null;
+      const pos = (await query<Position>("SELECT * FROM positions WHERE account_id = ? AND symbol = ? FOR UPDATE", [acct.id, lockedOrder.symbol], connection))[0];
+      const now = new Date().toISOString().slice(0, 23).replace("T", " ");
 
-  // Load account & current position
-  const { data: acctData } = await db
-    .from("accounts")
-    .select("*")
-    .eq("id", order.account_id)
-    .single();
-  if (!acctData) return null;
-  const acct = acctData as Account;
-
-  const { data: posData } = await db
-    .from("positions")
-    .select("*")
-    .eq("account_id", order.account_id)
-    .eq("symbol", order.symbol)
-    .maybeSingle();
-  const existingPos = (posData as Position | null) ?? null;
-
-  if (order.side === "buy") {
-    if (notional > Number(acct.cash) + 0.0001) {
-      // Cash changed since order placed — reject
-      await db
-        .from("orders")
-        .update({ status: "rejected", reject_reason: "insufficient cash at fill time" })
-        .eq("id", order.id);
-      return null;
-    }
-
-    const newCash = Number(acct.cash) - notional;
-    const newQty = existingPos ? Number(existingPos.qty) + qty : qty;
-    const newAvg = existingPos
-      ? (Number(existingPos.qty) * Number(existingPos.avg_entry_price) + notional) / newQty
-      : price;
-
-    const { error: cashError } = await db.from("accounts").update({ cash: newCash }).eq("id", acct.id);
-    if (cashError) return null;
-
-    if (existingPos) {
-      const { error: positionError } = await db
-        .from("positions")
-        .update({ qty: newQty, avg_entry_price: newAvg, updated_at: now })
-        .eq("id", existingPos.id);
-      if (positionError) return null;
-    } else {
-      const { error: positionError } = await db.from("positions").insert({
-        account_id: acct.id,
-        symbol: order.symbol,
-        qty: newQty,
-        avg_entry_price: newAvg,
-      });
-      if (positionError) return null;
-    }
-  } else {
-    // sell
-    if (!existingPos || Number(existingPos.qty) < qty - 0.0001) {
-      await db
-        .from("orders")
-        .update({ status: "rejected", reject_reason: "insufficient position at fill time" })
-        .eq("id", order.id);
-      return null;
-    }
-    const newCash = Number(acct.cash) + notional;
-    const newQty = Number(existingPos.qty) - qty;
-
-    const { error: cashError } = await db.from("accounts").update({ cash: newCash }).eq("id", acct.id);
-    if (cashError) return null;
-
-    if (newQty <= 0.0001) {
-      const { error: positionError } = await db.from("positions").delete().eq("id", existingPos.id);
-      if (positionError) return null;
-    } else {
-      const { error: positionError } = await db
-        .from("positions")
-        .update({ qty: newQty, updated_at: now })
-        .eq("id", existingPos.id);
-      if (positionError) return null;
-    }
+      if (lockedOrder.side === "buy") {
+        if (notional > Number(acct.cash) + 0.0001) {
+          await execute("UPDATE orders SET status = 'rejected', reject_reason = 'insufficient cash at fill time' WHERE id = ?", [order.id], connection);
+          return null;
+        }
+        const newQty = (pos ? Number(pos.qty) : 0) + qty;
+        const avgPrice = pos ? (Number(pos.qty) * Number(pos.avg_entry_price) + notional) / newQty : price;
+        await execute("UPDATE accounts SET cash = cash - ? WHERE id = ?", [notional, acct.id], connection);
+        if (pos) await execute("UPDATE positions SET qty = ?, avg_entry_price = ?, updated_at = ? WHERE id = ?", [newQty, avgPrice, now, pos.id], connection);
+        else await execute("INSERT INTO positions (id, account_id, symbol, qty, avg_entry_price) VALUES (?, ?, ?, ?, ?)", [randomUUID(), acct.id, lockedOrder.symbol, newQty, avgPrice], connection);
+      } else {
+        if (!pos || Number(pos.qty) < qty - 0.0001) {
+          await execute("UPDATE orders SET status = 'rejected', reject_reason = 'insufficient position at fill time' WHERE id = ?", [order.id], connection);
+          return null;
+        }
+        const newQty = Number(pos.qty) - qty;
+        await execute("UPDATE accounts SET cash = cash + ? WHERE id = ?", [notional, acct.id], connection);
+        if (newQty <= 0.0001) await execute("DELETE FROM positions WHERE id = ?", [pos.id], connection);
+        else await execute("UPDATE positions SET qty = ?, updated_at = ? WHERE id = ?", [newQty, now, pos.id], connection);
+      }
+      await execute("INSERT INTO fills (id, order_id, account_id, symbol, qty, price, side) VALUES (?, ?, ?, ?, ?, ?, ?)", [randomUUID(), order.id, acct.id, lockedOrder.symbol, qty, price, lockedOrder.side], connection);
+      await execute("UPDATE orders SET status = 'filled', filled_qty = ?, filled_avg_price = ?, filled_at = ? WHERE id = ?", [qty, price, now, order.id], connection);
+      return (await query<Order>("SELECT * FROM orders WHERE id = ?", [order.id], connection))[0] ?? null;
+    });
+  } catch (error) {
+    console.error("fillOrder transaction failed", error);
+    return null;
   }
-
-  const { error: fillError } = await db.from("fills").insert({
-    order_id: order.id,
-    account_id: acct.id,
-    symbol: order.symbol,
-    qty,
-    price,
-    side: order.side,
-  });
-  if (fillError) return null;
-
-  const { data: updated, error: orderError } = await db
-    .from("orders")
-    .update({
-      status: "filled",
-      filled_qty: qty,
-      filled_avg_price: price,
-      filled_at: now,
-    })
-    .eq("id", order.id)
-    .select("*")
-    .single();
-
-  if (orderError) return null;
-  return (updated as Order | null) ?? null;
 }
 
 /**
- * Run by Vercel Cron every minute: evaluate open limit orders and update equity.
+ * Run by hPanel cron: evaluate open limit orders and update equity.
  */
 export async function tick(): Promise<{ filled: number; symbolsRefreshed: number; accountsUpdated: number }> {
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
 
   let { data: openOrders, error: openOrdersError } = await db
     .from("orders")
@@ -365,7 +300,7 @@ export async function tick(): Promise<{ filled: number; symbolsRefreshed: number
  * Take periodic snapshots of every active account's equity for chart history.
  */
 export async function takeSnapshots(): Promise<number> {
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data: accounts } = await db.from("accounts").select("*").eq("status", "active");
   let n = 0;
   for (const a of (accounts as Account[] | null) ?? []) {
@@ -392,7 +327,7 @@ export async function takeSnapshots(): Promise<number> {
 }
 
 export async function cancelOrder(orderId: string, accountId: string): Promise<boolean> {
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data: order } = await db
     .from("orders")
     .select("*")

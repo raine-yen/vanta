@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { isAdminEmail } from "@/lib/admin";
 import { getSessionUser } from "@/lib/session-user";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { isMissingTableError } from "@/lib/app-data";
 
 const createSchema = z.object({
@@ -14,13 +13,13 @@ const lifecycleSchema = z.object({ action: z.literal("set_status"), competition_
 
 async function admin(req: NextRequest) {
   const user = await getSessionUser(req);
-  return user && isAdminEmail(user.email) ? user : null;
+  return user && (user.role === "owner" || user.role === "manager") ? user : null;
 }
 function migrationError(error: unknown) { return isMissingTableError(error) ? "Competition management needs its database migration." : error instanceof Error ? error.message : "Competition request failed."; }
 
 export async function GET(req: NextRequest) {
   if (!await admin(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const { data, error } = await supabaseAdmin().from("competitions").select("id, name, description, starting_cash, start_date, end_date, status, scoring_method, max_entrants, allow_crypto, prize_description, rules, published_at, locked_at, settled_at, created_at").order("created_at", { ascending: false });
+  const { data, error } = await mysqlAdmin().from("competitions").select("id, name, description, starting_cash, start_date, end_date, status, scoring_method, max_entrants, allow_crypto, prize_description, rules, published_at, locked_at, settled_at, created_at").order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: migrationError(error) }, { status: 503 });
   return NextResponse.json({ items: data ?? [] });
 }
@@ -30,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const body = await req.json().catch(() => null);
   const lifecycle = lifecycleSchema.safeParse(body);
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   if (lifecycle.success) {
     const now = new Date().toISOString();
     const updates: Record<string, unknown> = { status: lifecycle.data.status };

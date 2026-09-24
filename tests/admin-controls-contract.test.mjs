@@ -8,7 +8,7 @@ const source = (relative) => readFile(join(root, relative), "utf8");
 
 test("admin controls require authenticated administrator and expose bounded timeout/delete paths", async () => {
   const route = await source("src/app/api/admin/route.ts");
-  assert.match(route, /isAdminEmail/);
+  assert.match(route, /user\.role !== "owner" && user\.role !== "manager"/);
   assert.match(route, /action === "timeout"/);
   assert.match(route, /duration_minutes must be an integer from 1 to 43200/);
   assert.match(route, /suspended_until: suspendedUntil/);

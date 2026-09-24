@@ -1,0 +1,5 @@
+# Mobile endpoint switch (deferred)
+
+The Expo app currently reads `EXPO_PUBLIC_API_URL` in `mobile/App.tsx`. For the Hostinger release, set it to the Vanta site's HTTPS origin, without a trailing `/api`, for example `https://your-domain.example`. The existing calls to `/api/auth/login`, `/api/auth/signup`, `/api/auth/refresh`, `/api/me`, `/api/chart`, `/api/leaderboard`, `/api/prediction-markets`, and `/v2/*` then reach the Express API on that origin.
+
+Keep the `access_token` and `refresh_token` returned by login in secure mobile storage and send `Authorization: Bearer <access_token>` to authenticated API calls. The MySQL session API keeps the same response fields, but existing Supabase tokens cannot be used; users must sign in again after the server migration. Update the production EAS environment value of `EXPO_PUBLIC_API_URL` and build a new binary before moving mobile traffic. Check login, token refresh, `/api/me`, a paper order, and logout on a test build. Do not bundle database credentials or the cron secret in Expo variables.

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdaptiveQuests, getDailyQuestCycle, type DailyQuestStats } from "@/lib/adaptive-quests";
 import { getCurrentAccount } from "@/lib/app-data";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { MySqlClient } from "@/lib/mysql-client";
 
 const REWARD_POINTS = 200; // recognition points only — never account cash
 
-async function questState(db: SupabaseClient, accountId: string) {
+async function questState(db: MySqlClient, accountId: string) {
   const cycle = getDailyQuestCycle();
   const start = cycle.startsAt;
   const end = cycle.endsAt;

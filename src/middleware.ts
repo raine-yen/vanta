@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Minimal middleware — just passes requests through.
-// Auth is enforced in src/app/(app)/layout.tsx via supabaseServer().
-// Supabase session cookies are handled by the server components directly.
+// Auth is enforced in src/app/(app)/layout.tsx via mysqlServer().
+// MySQL-backed session cookies are handled by the server components directly.
 export function middleware(request: NextRequest) {
   return NextResponse.next({ request });
 }

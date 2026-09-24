@@ -73,13 +73,13 @@ test("sign in and sign up provision through the authenticated client", () => {
   const me = read("src/app/api/me/route.ts");
   const sessionUser = read("src/lib/session-user.ts");
 
-  assert.match(provisioning, /ensurePaperAccount\(user: PaperUser, db: SupabaseClient\)/);
+  assert.match(provisioning, /ensurePaperAccount\(user: PaperUser, db: MySqlClient\)/);
   assert.match(login, /await ensurePaperAccount\(data\.user, sb\)/);
   assert.match(signup, /if \(data\.session\)[\s\S]*await ensurePaperAccount\(data\.user, sb\)/);
-  assert.doesNotMatch(signup, /supabaseAdmin/);
+  assert.doesNotMatch(signup, /mysqlAdmin/);
   assert.doesNotMatch(signup, /from\("accounts"\)\.insert/);
-  assert.match(me, /const db = await supabaseForRequest\(req\)/);
+  assert.match(me, /const db = await mysqlForRequest\(req\)/);
   assert.match(me, /await ensurePaperAccount\(user, db\)/);
-  assert.match(sessionUser, /const sb = await supabaseForRequest\(req\)/);
-  assert.doesNotMatch(sessionUser, /supabaseAdmin/);
+  assert.match(sessionUser, /const sb = await mysqlForRequest\(req\)/);
+  assert.doesNotMatch(sessionUser, /mysqlAdmin/);
 });

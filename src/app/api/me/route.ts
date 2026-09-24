@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseForRequest } from "@/lib/supabase/request";
+import { mysqlForRequest } from "@/lib/mysql/request";
 import { fetchYahooPrices } from "@/lib/prices";
 import { getSessionUser } from "@/lib/session-user";
 import { getSelectedCompetitionAccount, isMissingTableError } from "@/lib/app-data";
-import { isAdminEmail } from "@/lib/admin";
 import { calculateInvestedPerformance } from "@/lib/performance";
 import { ensurePaperAccount } from "@/lib/ensure-paper-account";
 import { portfolioReturnPct } from "@/lib/ranks";
@@ -14,7 +13,7 @@ export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const db = await supabaseForRequest(req);
+  const db = await mysqlForRequest(req);
 
   try {
     await ensurePaperAccount(user, db);
@@ -92,7 +91,7 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const positionsValue = positionsWithMarket.reduce((s, p) => s + p.market_value, 0);
+  const positionsValue = positionsWithMarket.reduce((s: number, p: { market_value: number }) => s + p.market_value, 0);
 
   // Enrich prediction positions with a live CLOB midpoint (fallback to the
   // persisted catalog price), matching how /api/prediction-markets prices them.
@@ -155,7 +154,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     user: { id: user.id, email: user.email },
-    is_admin: isAdminEmail(user.email),
+    is_admin: user.role === "owner" || user.role === "manager",
     account: { ...account, equity, positions_value: positionsValue, prediction_positions_value: predictionPositionsValue },
     performance,
     positions: positionsWithMarket,

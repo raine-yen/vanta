@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { syncPredictionCatalog } from "@/lib/prediction-sync";
 
 // Refreshes the persisted prediction-markets catalog from Polymarket Gamma.
-// Vercel Cron hits this once/day (Hobby ceiling); /api/predictions/refresh
-// gives users an on-demand path so the catalog doesn't go stale for 24h.
+// The hPanel cron handler refreshes this catalog daily.
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  const expected = `Bearer ${process.env.CRON_SECRET ?? ""}`;
-  if (process.env.CRON_SECRET && auth !== expected) {
+  const expected = process.env.CRON_SECRET;
+  if (!expected || auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const synced = await syncPredictionCatalog(supabaseAdmin());
+    const synced = await syncPredictionCatalog(mysqlAdmin());
     return NextResponse.json({ ok: true, synced });
   } catch (e) {
     console.error("prediction catalog sync failed", e);

@@ -3,13 +3,13 @@ import { z } from "zod";
 import { generateKeyPair, hashSecret } from "@/lib/api-keys";
 import { getSessionUser } from "@/lib/session-user";
 import { getCurrentAccount } from "@/lib/app-data";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data } = await db
     .from("api_keys")
     .select("id, key_id, label, last_used_at, revoked_at, created_at")

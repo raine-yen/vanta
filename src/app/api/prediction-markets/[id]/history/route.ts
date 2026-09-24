@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { fetchProbabilityHistory } from "@/lib/prediction-sync";
 
 // Probability history chart for one outcome token of a cataloged market.
@@ -16,7 +16,7 @@ export async function GET(
   const daysRaw = Number(req.nextUrl.searchParams.get("days") ?? 7);
   const days = [1, 7, 30].includes(daysRaw) ? daysRaw : 7;
 
-  const { data: market } = await supabaseAdmin()
+  const { data: market } = await mysqlAdmin()
     .from("prediction_markets")
     .select("id, yes_token_id, no_token_id")
     .eq("id", id)

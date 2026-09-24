@@ -4,7 +4,7 @@
 // Scoped to the viewer's own competition — same visibility boundary as the
 // leaderboard list itself, not a wider account-lookup surface.
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { getSessionUser } from "@/lib/session-user";
 import { calculateInvestedPerformance } from "@/lib/performance";
 import { rankForAccount, rankMovement } from "@/lib/ranks";
@@ -53,10 +53,10 @@ export async function GET(req: NextRequest) {
   const equity = Number(target.cash) + performance.market_value;
   const rank = rankForAccount({ equity, startingCash: Number(target.starting_cash) });
 
-  // Latest persisted rank_history row gives real movement (position delta);
+  // Latest persisted leader_history row gives real movement (position delta);
   // fall back to "new" if this account has no snapshot yet.
   const { data: history } = await db
-    .from("rank_history")
+    .from("leader_history")
     .select("position, recorded_at")
     .eq("account_id", accountId)
     .order("recorded_at", { ascending: false })

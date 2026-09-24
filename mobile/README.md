@@ -1,6 +1,6 @@
 # Paper Trader Expo App
 
-This Expo app shares data with the website by calling the same Next.js API routes backed by Supabase.
+This Expo app shares data with the website through the same Express API routes backed by MySQL. See [HOSTINGER_ENDPOINT_NOTES.md](HOSTINGER_ENDPOINT_NOTES.md) for the deferred production endpoint switch.
 
 ## Test with Expo Go
 
@@ -35,8 +35,8 @@ The Expo app and website now share users, accounts, positions, orders, API keys,
 
 ## Publish path
 
-1. Deploy the website/API to Vercel.
-2. Set `EXPO_PUBLIC_API_URL` to the Vercel HTTPS URL.
+1. Deploy the website/API to Hostinger.
+2. Set `EXPO_PUBLIC_API_URL` to the Hostinger HTTPS URL.
 3. Run `npx eas-cli@latest init`.
 4. Replace `extra.eas.projectId` in `app.json` with the generated EAS project id.
 5. Build TestFlight:

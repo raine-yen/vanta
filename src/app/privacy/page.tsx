@@ -24,7 +24,7 @@ const sections = [
   {
     title: "Sharing",
     body: [
-      "We use infrastructure providers such as Supabase for authentication and database storage, Vercel for hosting, and market data providers to power educational paper trading features.",
+      "We use Hostinger for application hosting and MySQL database storage, and market data providers to power educational paper trading features.",
       "We do not sell personal information.",
     ],
   },

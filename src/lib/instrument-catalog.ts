@@ -248,7 +248,7 @@ export interface SearchOptions {
   offset?: number;
   /** Test hook for deterministic provider-result ranking. */
   providerResults?: Instrument[];
-  /** Injectable for tests; defaults to the real Supabase admin client. */
+  /** Injectable for tests; defaults to the MySQL client. */
   predictionDb?: PredictionCatalogDb;
 }
 
@@ -372,8 +372,8 @@ export async function searchInstruments(rawQuery: string, options: SearchOptions
   let predictionDb = options.predictionDb;
   if (!predictionDb) {
     try {
-      const { supabaseAdmin } = await import("@/lib/supabase/admin");
-      predictionDb = supabaseAdmin() as unknown as PredictionCatalogDb;
+      const { mysqlAdmin } = await import("@/lib/mysql/admin");
+      predictionDb = mysqlAdmin() as unknown as PredictionCatalogDb;
     } catch {
       predictionDb = undefined; // no DB available (e.g. pure unit test) — skip predictions
     }

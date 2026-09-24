@@ -11,7 +11,7 @@ from alpaca.trading.requests import MarketOrderRequest
 from alpaca.trading.enums import OrderSide, TimeInForce
 
 # 1. Replace BASE with your deployed Paper Trader URL
-BASE = "https://your-paper-trader.vercel.app"
+BASE = "https://your-vanta-hostinger-domain.example"
 
 # 2. Paste your API keys from /api-keys
 client = TradingClient(
@@ -43,7 +43,7 @@ for p in client.get_all_positions():
 
 const PY_RAW = `import requests
 
-BASE = "https://your-paper-trader.vercel.app"
+BASE = "https://your-vanta-hostinger-domain.example"
 H = {
     "APCA-API-KEY-ID":     "PK...",
     "APCA-API-SECRET-KEY": "...",

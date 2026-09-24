@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const accountIds = (data ?? []).map((row) =>
+  const accountIds = (data ?? []).map((row: { blocker_account_id: string; blocked_account_id: string }) =>
     row.blocker_account_id === ctx.account.id ? row.blocked_account_id : row.blocker_account_id
   );
   return NextResponse.json({ account_ids: Array.from(new Set(accountIds)) });

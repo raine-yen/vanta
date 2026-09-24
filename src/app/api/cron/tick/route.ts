@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tick } from "@/lib/engine";
 
-// Called by Vercel Cron every minute. Can also be hit manually for testing.
+// Called by the hPanel cron handler.
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  const expected = `Bearer ${process.env.CRON_SECRET ?? ""}`;
-  // Vercel Cron sends authorization header automatically when CRON_SECRET is set.
-  // Allow unauthenticated calls in dev (when no secret is configured) for easy local testing.
-  if (process.env.CRON_SECRET && auth !== expected) {
+  const expected = process.env.CRON_SECRET;
+  if (!expected || auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {

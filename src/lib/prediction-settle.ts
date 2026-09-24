@@ -2,7 +2,7 @@
 // (Gamma: closed=true, umaResolutionStatus="resolved", outcomePrices winner="1"),
 // pay holders $1 per winning share / $0 for losers into the shared paper cash,
 // zero the positions, and write 'settle' fills.
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { settlePayout } from "@/lib/prediction-math";
 import type { FetchLike } from "@/lib/prediction-sync";
 
@@ -34,7 +34,7 @@ export function gammaWinner(row: { closed?: boolean; umaResolutionStatus?: strin
 export async function settlePredictionMarkets(
   deps: { db?: SettleDb; fetchImpl?: FetchLike; accountId?: string } = {},
 ): Promise<SettleResult> {
-  const db = deps.db ?? (supabaseAdmin() as unknown as SettleDb);
+  const db = deps.db ?? (mysqlAdmin() as unknown as SettleDb);
   const fetchImpl = deps.fetchImpl ?? fetch;
 
   // Only markets someone actually holds can need settlement.

@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminEmail } from "@/lib/admin";
 import { fetchYahooPrices } from "@/lib/prices";
 import { getSessionUser } from "@/lib/session-user";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { isMissingTableError } from "@/lib/app-data";
 import { calculateInvestedPerformance } from "@/lib/performance";
 import { ensureAllPaperAccounts } from "@/lib/ensure-paper-account";
 
 async function verifyAdmin(req: NextRequest) {
   const user = await getSessionUser(req);
-  if (!user || !isAdminEmail(user.email)) return null;
+  if (!user || (user.role !== "owner" && user.role !== "manager")) return null;
   return user;
 }
 
 type ManagedAccount = { id: string; user_id: string };
 
-async function permanentlyDeleteUserAccount(db: ReturnType<typeof supabaseAdmin>, account: ManagedAccount) {
+async function permanentlyDeleteUserAccount(db: ReturnType<typeof mysqlAdmin>, account: ManagedAccount) {
   const [{ error: positionError }, { error: predictionPositionError }, { error: predictionFillError }, { error: orderError }] = await Promise.all([
     db.from("positions").delete().eq("account_id", account.id),
     db.from("prediction_positions").delete().eq("account_id", account.id),
@@ -34,7 +33,7 @@ export async function GET(req: NextRequest) {
   const user = await verifyAdmin(req);
   if (!user) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   try {
     await ensureAllPaperAccounts();
   } catch (provisionError) {
@@ -127,8 +126,8 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  const totalEquity = enriched.reduce((s, a) => s + Number(a.equity), 0);
-  const avgReturn = enriched.length > 0 ? enriched.reduce((s, a) => s + a.return_pct, 0) / enriched.length : 0;
+  const totalEquity = enriched.reduce((s: number, a: { equity: number }) => s + Number(a.equity), 0);
+  const avgReturn = enriched.length > 0 ? enriched.reduce((s: number, a: { return_pct: number }) => s + a.return_pct, 0) / enriched.length : 0;
   const totalOrders = allOrders?.length ?? 0;
 
   return NextResponse.json({
@@ -152,9 +151,12 @@ export async function POST(req: NextRequest) {
   const user = await verifyAdmin(req);
   if (!user) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const body = await req.json();
   const { action, account_id } = body as { action: string; account_id: string; amount?: number };
+  if (["delete_user", "delete_users", "reset", "adjust_cash"].includes(action) && user.role !== "owner") {
+    return NextResponse.json({ error: "owner role required" }, { status: 403 });
+  }
 
   if (action === "hide_message") {
     const { message_id } = body as { message_id?: string };
@@ -179,7 +181,7 @@ export async function POST(req: NextRequest) {
     if (accountIds.length === 0) return NextResponse.json({ error: "select at least one account" }, { status: 400 });
     const { data: accounts } = await db.from("accounts").select("id, user_id").in("id", accountIds);
     if (!accounts || accounts.length !== accountIds.length) return NextResponse.json({ error: "one or more accounts were not found" }, { status: 404 });
-    if (accounts.some((account) => account.user_id === user.id)) {
+    if (accounts.some((account: { user_id: string }) => account.user_id === user.id)) {
       return NextResponse.json({ error: "cannot delete your own admin account" }, { status: 400 });
     }
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentAccount, isMissingTableError } from "@/lib/app-data";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -20,21 +22,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "avatar must be under 4MB" }, { status: 400 });
   }
 
-  await ctx.db.storage.createBucket("avatars", { public: true }).catch(() => null);
-
   const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-  const path = `${ctx.account.id}/${Date.now()}.${ext}`;
+  const filename = `${Date.now()}.${ext}`;
+  const path = `${ctx.account.id}/${filename}`;
   const bytes = await file.arrayBuffer();
-  const { error: uploadError } = await ctx.db.storage
-    .from("avatars")
-    .upload(path, bytes, { contentType: file.type, upsert: true });
-
-  if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
-  }
-
-  const { data: publicUrl } = ctx.db.storage.from("avatars").getPublicUrl(path);
-  const avatar_url = publicUrl.publicUrl;
+  const directory = join(process.cwd(), "uploads", "avatars", ctx.account.id);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, filename), Buffer.from(bytes));
+  const avatar_url = `/uploads/avatars/${path}`;
 
   const { data, error } = await ctx.db
     .from("trader_profiles")

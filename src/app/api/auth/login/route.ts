@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ensurePaperAccount } from "@/lib/ensure-paper-account";
-import { supabaseServer } from "@/lib/supabase/server";
+import { mysqlServer } from "@/lib/mysql/server";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sb = await supabaseServer();
+  const sb = await mysqlServer();
   const { data, error } = await sb.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Persist the Supabase session so the client-side layout can detect the user.
-  const sbForCookies = await supabaseServer();
+  // Persist the MySQL-backed session so the app layout can detect the user.
+  const sbForCookies = await mysqlServer();
   await sbForCookies.auth.setSession({
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,

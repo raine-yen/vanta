@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import {
   fetchActiveMarkets,
   catalogNeedsQuoteRepair,
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ...liveCache.page, cached: true });
   }
   try {
-    const db = supabaseAdmin();
+    const db = mysqlAdmin();
     let catalogQuery = db.from("prediction_markets").select("*").eq("status", "active");
     if (searchTerm) catalogQuery = catalogQuery.ilike("question", `%${searchTerm}%`);
     const catalogRows = (await catalogQuery

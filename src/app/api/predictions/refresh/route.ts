@@ -6,7 +6,7 @@
 // re-reads public Polymarket data and touches no user-owned rows other than
 // their own settlement payout).
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { syncPredictionCatalog } from "@/lib/prediction-sync";
 import { settlePredictionMarkets } from "@/lib/prediction-settle";
 import { getSessionUser } from "@/lib/session-user";
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   try {
-    const db = supabaseAdmin();
+    const db = mysqlAdmin();
     const synced = await syncPredictionCatalog(db);
     const settled = await settlePredictionMarkets({ db: db as any });
     return NextResponse.json({ ok: true, synced, settled });

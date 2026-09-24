@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 
 // Generate Alpaca-style key pair: "PK" + 20 char key id, 40 char secret.
 export function generateKeyPair() {
@@ -12,5 +12,7 @@ export function hashSecret(secret: string): string {
 }
 
 export function verifySecret(secret: string, hash: string): boolean {
-  return hashSecret(secret) === hash;
+  const actual = Buffer.from(hashSecret(secret), "hex");
+  const expected = Buffer.from(hash, "hex");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }

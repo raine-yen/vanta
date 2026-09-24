@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { getPrice } from "@/lib/prices";
 import { placeOrder } from "@/lib/engine";
 import { toAlpacaPosition, toAlpacaOrder } from "@/lib/alpaca-format";
@@ -15,7 +15,7 @@ export async function GET(
   const { symbol } = await params;
   const upper = symbol.toUpperCase();
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data } = await db
     .from("positions")
     .select("*")
@@ -45,7 +45,7 @@ export async function DELETE(
   const { symbol } = await params;
   const upper = symbol.toUpperCase();
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data: pos } = await db
     .from("positions")
     .select("*")

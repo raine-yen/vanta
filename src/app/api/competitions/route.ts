@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSessionUser } from "@/lib/session-user";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { getSelectedCompetitionAccount, isMissingTableError } from "@/lib/app-data";
 
 const selectSchema = z.object({ competition_id: z.string().uuid() });
@@ -9,7 +9,7 @@ const selectSchema = z.object({ competition_id: z.string().uuid() });
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const [competitionsResult, accountsResult] = await Promise.all([
     db.from("competitions").select("id, name, description, starting_cash, start_date, end_date, status, scoring_method, max_entrants, allow_crypto, prize_description, rules, published_at, locked_at, settled_at, created_at").order("start_date", { ascending: true }),
     db.from("accounts").select("id, competition_id").eq("user_id", user.id),
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const membership = new Map((accountsResult.data ?? []).map((row: { id: string; competition_id: string }) => [row.competition_id, row.id]));
   return NextResponse.json({
     active_competition_id: selected.data?.competition_id ?? null,
-    items: (competitionsResult.data ?? []).map((competition) => ({
+    items: (competitionsResult.data ?? []).map((competition: Record<string, any>) => ({
       ...competition,
       entrants: counts.get(competition.id) ?? 0,
       joined: membership.has(competition.id),
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const parsed = selectSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "valid competition_id required" }, { status: 400 });
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data: competition, error } = await db
     .from("competitions")
     .select("id, status, starting_cash, max_entrants")

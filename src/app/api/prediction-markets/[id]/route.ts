@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { predictionOutcomeLabels } from "@/lib/prediction-presentation";
 import { fetchUpstreamPredictionMarketState, type PredictionMarketRow } from "@/lib/prediction-sync";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data: market } = await db.from("prediction_markets").select("*").eq("id", id).maybeSingle();
   if (!market) return NextResponse.json({ error: "market not found" }, { status: 404 });
 

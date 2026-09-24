@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticateApiKey } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { placeOrder } from "@/lib/engine";
 import { toAlpacaOrder } from "@/lib/alpaca-format";
 import type { Order } from "@/lib/types";
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
   const status = url.searchParams.get("status"); // open | closed | all
   const limit = Math.min(Number(url.searchParams.get("limit") ?? 50), 500);
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   let q = db
     .from("orders")
     .select("*")

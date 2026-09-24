@@ -14,3 +14,4 @@ mobile/dist
 mobile/node_modules
 .env*
 supabase/.temp/
+uploads/

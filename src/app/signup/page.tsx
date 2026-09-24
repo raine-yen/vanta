@@ -27,7 +27,7 @@ export default function SignupPage() {
       setLoading(false);
       return;
     }
-    // Auto sign-in (Supabase signUp without email confirmation creates a session)
+    // Sign in after creating the MySQL account.
     await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

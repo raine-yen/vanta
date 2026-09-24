@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session-user";
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { mysqlAdmin } from "@/lib/mysql/admin";
+import type { MySqlClient } from "@/lib/mysql-client";
 
 export type SessionAccount = {
   id: string;
@@ -25,12 +25,12 @@ export function isMissingTableError(error: unknown) {
     typeof error === "object" && error && "message" in error
       ? String((error as { message?: unknown }).message).toLowerCase()
       : "";
-  return message.includes("schema cache") || message.includes("does not exist") || message.includes("relation");
+  return message.includes("schema cache") || message.includes("does not exist") || message.includes("relation") || message.includes("doesn't exist") || message.includes("er_no_such_table");
 }
 
 /** Resolve a member's selected competition without ever trusting the browser
  * cookie as authorization. The lookup always includes the signed-in user. */
-export async function getSelectedCompetitionAccount(db: SupabaseClient, userId: string, competitionId?: string | null) {
+export async function getSelectedCompetitionAccount(db: MySqlClient, userId: string, competitionId?: string | null) {
   if (competitionId) {
     const selected = await db.from("accounts").select("*").eq("user_id", userId).eq("competition_id", competitionId).maybeSingle();
     if (!selected.error && selected.data) return selected;
@@ -42,7 +42,7 @@ export async function getCurrentAccount(req: NextRequest) {
   const user = await getSessionUser(req);
   if (!user) return { response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data: account, error } = await getSelectedCompetitionAccount(db, user.id, req.cookies.get("vanta_competition")?.value);
 
   if (error) return { response: NextResponse.json({ error: error.message }, { status: 500 }) };

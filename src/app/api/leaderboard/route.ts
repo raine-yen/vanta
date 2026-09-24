@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { fetchYahooPrices } from "@/lib/prices";
 import { getSessionUser } from "@/lib/session-user";
 import { calculateInvestedPerformance } from "@/lib/performance";
@@ -22,7 +22,7 @@ interface StandingRow {
   score: number;
   invested_growth_pct: number;
   position: number;
-  /** Internal-only: used to persist ranks/rank_history, stripped before the response goes out. */
+  /** Internal-only: used to persist ranks/leader_history, stripped before the response goes out. */
   _tier: number;
   _tier_name: string;
   _division: number;
@@ -32,7 +32,7 @@ interface StandingRow {
 }
 
 async function recomputeRanks(competitionId: string, standings: StandingRow[]): Promise<void> {
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const now = Date.now();
   if (now - (lastRecompute.get(competitionId) ?? 0) < RECOMPUTE_COOLDOWN_MS) return;
   lastRecompute.set(competitionId, now);
@@ -52,7 +52,7 @@ async function recomputeRanks(competitionId: string, standings: StandingRow[]): 
   if (standings.length > 0) {
     const ids = standings.map((s) => s.account_id);
     const { data: history } = await db
-      .from("rank_history")
+      .from("leader_history")
       .select("account_id, position")
       .in("account_id", ids)
       .order("recorded_at", { ascending: false })
@@ -66,6 +66,16 @@ async function recomputeRanks(competitionId: string, standings: StandingRow[]): 
     const mv = rankMovement({ current: entry.position, previous: previousPositions.get(entry.account_id) ?? null });
     entry._movement = mv.movement;
     entry._movement_amount = mv.movementAmount;
+
+    await db.from("leaderboard").upsert({
+      account_id: entry.account_id,
+      competition_id: competitionId,
+      position: entry.position,
+      equity: entry.equity,
+      return_pct: entry.return_pct,
+      score: entry.score,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "account_id" });
 
     await db.from("ranks").upsert(
       {
@@ -81,7 +91,7 @@ async function recomputeRanks(competitionId: string, standings: StandingRow[]): 
     );
 
     if (!previousPositions.has(entry.account_id) || previousPositions.get(entry.account_id) !== entry.position) {
-      await db.from("rank_history").insert({
+      await db.from("leader_history").insert({
         account_id: entry.account_id,
         season_id: seasonId,
         position: entry.position,
@@ -94,7 +104,7 @@ async function recomputeRanks(competitionId: string, standings: StandingRow[]): 
 
   // Trim history to the latest 20 snapshots per account.
   const stale = await db
-    .from("rank_history")
+    .from("leader_history")
     .select("id, account_id")
     .in("account_id", standings.map((s) => s.account_id))
     .order("recorded_at", { ascending: false })
@@ -106,7 +116,7 @@ async function recomputeRanks(competitionId: string, standings: StandingRow[]): 
     if (count >= 20) dropIds.push(row.id);
     keep.set(row.account_id, count + 1);
   }
-  if (dropIds.length > 0) await db.from("rank_history").delete().in("id", dropIds);
+  if (dropIds.length > 0) await db.from("leader_history").delete().in("id", dropIds);
 }
 
 export async function GET(req: NextRequest) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ensurePaperAccount } from "@/lib/ensure-paper-account";
-import { supabaseServer } from "@/lib/supabase/server";
+import { mysqlServer } from "@/lib/mysql/server";
 
 const signupSchema = z.object({
   email: z.string().email(),
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sb = await supabaseServer();
+  const sb = await mysqlServer();
   const { data, error } = await sb.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,

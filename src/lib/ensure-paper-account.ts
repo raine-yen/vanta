@@ -1,8 +1,8 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { mysqlAdmin } from "@/lib/mysql/admin";
+import type { MySqlClient } from "@/lib/mysql-client";
 
 /**
- * Makes account provisioning recoverable for pre-existing Supabase Auth users.
+ * Makes account provisioning recoverable for pre-existing users.
  * Older users may predate the accounts row; on their next successful sign-in we
  * restore exactly one paper account in the active default competition.
  */
@@ -31,7 +31,7 @@ function accountRow(user: PaperUser, competition: Competition) {
   };
 }
 
-async function getActivePaperCompetition(db: SupabaseClient): Promise<Competition> {
+async function getActivePaperCompetition(db: MySqlClient): Promise<Competition> {
   let { data: competition, error } = await db
     .from("competitions")
     .select("id, starting_cash")
@@ -59,7 +59,7 @@ async function getActivePaperCompetition(db: SupabaseClient): Promise<Competitio
 }
 
 /** Provision one missing account without modifying an existing portfolio. */
-export async function ensurePaperAccount(user: PaperUser, db: SupabaseClient) {
+export async function ensurePaperAccount(user: PaperUser, db: MySqlClient) {
   const competition = await getActivePaperCompetition(db);
   const { error } = await db.from("accounts").upsert(accountRow(user, competition), {
     onConflict: "user_id,competition_id",
@@ -69,9 +69,9 @@ export async function ensurePaperAccount(user: PaperUser, db: SupabaseClient) {
   if (error) throw new Error("Could not activate your paper account.");
 }
 
-/** Backfill all Supabase Auth users into the active default paper competition. */
+/** Backfill all MySQL users into the active default paper competition. */
 export async function ensureAllPaperAccounts() {
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const competition = await getActivePaperCompetition(db);
   let page = 1;
   let createdOrExisting = 0;

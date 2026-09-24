@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { cancelOrder } from "@/lib/engine";
 import { toAlpacaOrder } from "@/lib/alpaca-format";
 import type { Order } from "@/lib/types";
@@ -14,7 +14,7 @@ export async function GET(
   const { account } = result.auth;
   const { id } = await params;
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data } = await db
     .from("orders")
     .select("*")

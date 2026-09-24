@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Buffer } from "node:buffer";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { verifySecret } from "@/lib/api-keys";
 import type { Account, ApiKey } from "@/lib/types";
 
@@ -40,7 +40,7 @@ export async function authenticateApiKey(req: NextRequest): Promise<
   }
   const { keyId, secret } = credentials;
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
 
   const { data: apiKey, error: keyErr } = await db
     .from("api_keys")

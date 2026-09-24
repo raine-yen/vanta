@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/session-user";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 
 export async function DELETE(req: NextRequest) {
   const user = await getSessionUser(req);
@@ -8,7 +8,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { error } = await db.auth.admin.deleteUser(user.id);
 
   if (error) {

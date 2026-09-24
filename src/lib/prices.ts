@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 
 // Direct Yahoo Finance HTTP fetch — no package, no crumb issues on serverless.
 // Uses the v8 chart endpoint which is the most reliable for single-symbol quotes.
@@ -298,7 +298,7 @@ export async function fetchYahooDetailedQuotes(symbols: string[]): Promise<Map<s
 
 export async function getPrice(symbol: string, options: { forceLive?: boolean; maxCacheAgeMs?: number } = {}): Promise<number | null> {
   const upper = symbol.toUpperCase();
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const maxCacheAgeMs = options.maxCacheAgeMs ?? 5_000;
 
   const { data: cached } = options.forceLive ? { data: null } : await db

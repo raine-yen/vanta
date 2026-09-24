@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { fetchYahooPrices } from "@/lib/prices";
 import { toAlpacaPosition } from "@/lib/alpaca-format";
 import type { Position } from "@/lib/types";
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   if (!result.ok) return result.response;
   const { account } = result.auth;
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { data } = await db
     .from("positions")
     .select("*")

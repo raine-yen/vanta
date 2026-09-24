@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchYahooPrices } from "@/lib/prices";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { getCurrentAccount, isMissingTableError } from "@/lib/app-data";
 import { calculateInvestedPerformance } from "@/lib/performance";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ accountId: string }> }) {
   const { accountId } = await params;
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
 
   const { data: account, error } = await db
     .from("accounts")

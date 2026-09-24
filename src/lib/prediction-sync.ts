@@ -1,7 +1,7 @@
 // Syncs the Polymarket catalog into `prediction_markets` and provides live
-// binary-outcome quotes. The db handle is duck-typed (a SupabaseClient-like
+// binary-outcome quotes. The db handle is duck-typed (a query-builder-like
 // object) and fetch is injectable, so every code path is unit-testable with
-// fakes — production callers pass supabaseAdmin() and global fetch.
+// fakes — production callers pass mysqlAdmin() and global fetch.
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 

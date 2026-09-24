@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { mysqlAdmin } from "@/lib/mysql/admin";
 import { getSessionUser } from "@/lib/session-user";
 
 export async function DELETE(
@@ -10,7 +10,7 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
 
-  const db = supabaseAdmin();
+  const db = mysqlAdmin();
   const { error } = await db
     .from("api_keys")
     .update({ revoked_at: new Date().toISOString() })
