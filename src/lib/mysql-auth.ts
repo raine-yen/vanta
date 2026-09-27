@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID, scrypt as callbackScrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import bcrypt from "bcryptjs";
 import { execute, query } from "@/lib/mysql";
 import { readCookie } from "@/lib/request-context";
 
@@ -30,7 +31,10 @@ export async function hashPassword(password: string): Promise<string> {
   return `scrypt:${salt}:${result.toString("hex")}`;
 }
 
-async function verifyPassword(password: string, encoded: string): Promise<boolean> {
+export async function verifyPassword(password: string, encoded: string): Promise<boolean> {
+  // Existing Supabase Auth users have bcrypt hashes. Keep their passwords valid
+  // after their account rows are copied to MySQL.
+  if (/^\$2[aby]\$\d{2}\$/.test(encoded)) return bcrypt.compare(password, encoded);
   const [algorithm, salt, hex] = encoded.split(":");
   if (algorithm !== "scrypt" || !salt || !hex) return false;
   const expected = Buffer.from(hex, "hex");

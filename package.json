@@ -13,6 +13,7 @@
     "test": "tsx --test tests/*.test.mjs"
   },
   "dependencies": {
+    "bcryptjs": "3.0.3",
     "clsx": "^2.1.1",
     "express": "^5.2.1",
     "lucide-react": "^0.460.0",
