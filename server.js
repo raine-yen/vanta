@@ -1,36 +1,43 @@
-// Hostinger monitors the entry process for listen(). Serve a startup response
-// immediately, then route traffic to Vanta once migrations and Next are ready.
+// Hostinger monitors the entry process for listen(). Open that listener before
+// migrations and Next initialization, then serve Next in the same process.
 const express = require("express");
-const { spawn } = require("node:child_process");
 const { chmod, writeFile } = require("node:fs/promises");
-const http = require("node:http");
 const { homedir } = require("node:os");
-const { join } = require("node:path");
+const { join, resolve } = require("node:path");
+const mysql = require("mysql2/promise");
 
 const publicPort = Number(process.env.PORT || 3000);
-const apiPort = Number(process.env.API_PORT || 3002);
-let ready = false;
-let child;
+let nextHandler;
+let nextApp;
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 2,
+});
 
 const app = express();
 app.disable("x-powered-by");
+app.set("trust proxy", true);
+app.use("/uploads", express.static(resolve(__dirname, "uploads"), { fallthrough: false }));
+app.get("/health", async (_req, res) => {
+  if (!nextHandler) return res.status(503).json({ ok: false });
+  try {
+    await pool.query("SELECT 1 AS ok");
+    res.json({ ok: true });
+  } catch {
+    res.status(503).json({ ok: false });
+  }
+});
 app.use((req, res) => {
-  if (!ready) return res.status(503).send("Vanta is starting");
-  const proxy = http.request({
-    hostname: "127.0.0.1",
-    port: apiPort,
-    path: req.originalUrl,
-    method: req.method,
-    headers: req.headers,
-  }, (upstream) => {
-    res.writeHead(upstream.statusCode || 502, upstream.headers);
-    upstream.pipe(res);
+  if (!nextHandler) return res.status(503).send("Vanta is starting");
+  void Promise.resolve(nextHandler(req, res)).catch((error) => {
+    console.error("Vanta request failed:", error);
+    if (!res.headersSent) res.status(500).send("Vanta request failed");
   });
-  proxy.on("error", (error) => {
-    console.error("Vanta proxy failed:", error.message);
-    if (!res.headersSent) res.status(502).send("Vanta is restarting");
-  });
-  req.pipe(proxy);
 });
 
 const listener = app.listen(publicPort, "0.0.0.0", () => {
@@ -54,18 +61,10 @@ async function writeCronEnvironment() {
 async function main() {
   await import("./scripts/migrate.mjs");
   await writeCronEnvironment();
-  child = spawn(process.execPath, [require.resolve("tsx/cli"), "src/server.ts"], {
-    stdio: "inherit",
-    env: { ...process.env, PORT: String(apiPort) },
-    windowsHide: true,
-  });
-  child.on("exit", (code) => {
-    ready = false;
-    console.error(`Vanta server exited (${code})`);
-    process.exit(code || 1);
-  });
-  ready = true;
-  console.log("Vanta gateway routing to the API");
+  nextApp = require("next")({ dev: false, dir: __dirname, hostname: "127.0.0.1", port: publicPort });
+  await nextApp.prepare();
+  nextHandler = nextApp.getRequestHandler();
+  console.log("Vanta ready on public gateway");
 }
 
 main().catch((error) => {
@@ -73,7 +72,8 @@ main().catch((error) => {
   listener.close(() => process.exit(1));
 });
 process.on("SIGTERM", () => {
-  ready = false;
-  child?.kill("SIGTERM");
+  nextHandler = null;
+  void nextApp?.close();
+  void pool.end();
   listener.close();
 });

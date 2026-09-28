@@ -1,6 +1,6 @@
 # Vanta on Hostinger
 
-Hostinger monitors `server.js` for a direct `listen()` call. It opens the public Express gateway immediately, applies MySQL migrations, then starts the Vanta API on private loopback port 3002 and the Next.js frontend on private loopback port 3001. The gateway returns 503 during migrations and may briefly return 502 while the private services start. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`. Internal database IDs are `CHAR(36)`; Polymarket condition IDs are stored separately as external keys.
+Hostinger monitors `server.js` for a direct `listen()` call. It opens the public Express gateway immediately, applies MySQL migrations, then starts the compiled Next.js pages and API routes in that same process. The gateway returns 503 during startup. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`. Internal database IDs are `CHAR(36)`; Polymarket condition IDs are stored separately as external keys.
 
 ## 1. Prepare the repository and hosting plan
 
@@ -26,7 +26,7 @@ In the web app's **Environment variables** section, set:
 | `DB_PASSWORD` | Database password |
 | `CRON_SECRET` | A newly generated long random secret, kept only in hPanel/private cron configuration |
 | `APP_URL` | The site's public HTTPS origin, such as `https://your-domain.example` |
-| `NEXT_PORT` | `3001` unless that private loopback port is already occupied |
+| `NEXT_PORT` | Legacy compatibility setting; the Hostinger entry process no longer opens a second port |
 
 Do not set old `NEXT_PUBLIC_SUPABASE_*` or `SUPABASE_SERVICE_ROLE_KEY` values. Database credentials and the cron secret must never be committed. Hostinger documents [environment variables](https://www.hostinger.com/support/how-to-add-environment-variables-during-node-js-application-deployment/) and [MySQL connection settings](https://www.hostinger.com/support/connecting-a-hostinger-mysql-database-to-a-node-js-application/).
 
@@ -74,7 +74,7 @@ The cron endpoints reject requests when `CRON_SECRET` is absent or the Bearer to
 5. Place a small **paper** order, verify the order and fill rows in MySQL, and check the same portfolio in the Next frontend.
 6. Confirm all four cron jobs show successful output.
 
-The app uses `PORT` supplied by Hostinger for the public Express listener. It uses `NEXT_PORT` only on `127.0.0.1`; do not expose that port. The app stores uploaded avatars under `uploads/`. Configure persistent storage or a backup for that directory if the Hostinger deployment replaces app files on each push.
+The app uses `PORT` supplied by Hostinger for its public Express listener. Next.js runs in that same process. The app stores uploaded avatars under `uploads/`. Configure persistent storage or a backup for that directory if the Hostinger deployment replaces app files on each push.
 
 ## Data migration and rollback
 
