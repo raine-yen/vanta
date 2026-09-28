@@ -51,19 +51,6 @@ async function writeCronEnvironment() {
   console.log(`Private cron environment ready at ${path}`);
 }
 
-async function waitForApp() {
-  const deadline = Date.now() + 60_000;
-  while (Date.now() < deadline) {
-    try {
-      const health = await fetch(`http://127.0.0.1:${apiPort}/health`, { signal: AbortSignal.timeout(1500) });
-      const frontend = await fetch(`http://127.0.0.1:${apiPort}/`, { method: "HEAD", signal: AbortSignal.timeout(1500) });
-      if (health.ok && frontend.ok) return;
-    } catch { /* Child or frontend is still starting. */ }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error("Vanta did not become healthy within 60 seconds");
-}
-
 async function main() {
   await import("./scripts/migrate.mjs");
   await writeCronEnvironment();
@@ -77,9 +64,8 @@ async function main() {
     console.error(`Vanta server exited (${code})`);
     process.exit(code || 1);
   });
-  await waitForApp();
   ready = true;
-  console.log("Vanta gateway ready");
+  console.log("Vanta gateway routing to the API");
 }
 
 main().catch((error) => {

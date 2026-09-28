@@ -1,12 +1,12 @@
 # Vanta on Hostinger
 
-Hostinger monitors `server.js` for a direct `listen()` call. It opens the public Express gateway immediately, applies MySQL migrations, then starts the Vanta API on private loopback port 3002 and the Next.js frontend on private loopback port 3001. The gateway returns 503 until both the API health check and frontend are ready. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`. Internal database IDs are `CHAR(36)`; Polymarket condition IDs are stored separately as external keys.
+Hostinger monitors `server.js` for a direct `listen()` call. It opens the public Express gateway immediately, applies MySQL migrations, then starts the Vanta API on private loopback port 3002 and the Next.js frontend on private loopback port 3001. The gateway returns 503 during migrations and may briefly return 502 while the private services start. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`. Internal database IDs are `CHAR(36)`; Polymarket condition IDs are stored separately as external keys.
 
 ## 1. Prepare the repository and hosting plan
 
 The release source is on the GitHub branch `release/vanta-production`, and a source-only upload is staged at `private-migration/vanta-hostinger-source.zip`. Check the signed-in Hostinger account for an active plan that supports Node.js web apps, then select an existing site or create one on the plan. Use a free Hostinger subdomain if no domain has been chosen. Deploy the source archive with the Hostinger Connector, choose Node.js **22**, and configure `server.js` as the entry file. The archive contains no build output or private data. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) also describes connecting GitHub later for deployment on push; an archive deployment alone does not enable that link.
 
-In build settings, use the project root, `npm run build`, and **`server.js` as the entry file** (or `npm start` if the panel asks for a start command). If automatic Node.js detection selects the Next.js entry point, override the build settings before starting the build. Keep the Next build output `.next` available to the app; do not use a static export. Check the build log for `next build`, then the runtime log for `Vanta gateway ready`.
+In build settings, use the project root, `npm run build`, and **`server.js` as the entry file** (or `npm start` if the panel asks for a start command). If automatic Node.js detection selects the Next.js entry point, override the build settings before starting the build. Keep the Next build output `.next` available to the app; do not use a static export. Check the build log for `next build`, then the runtime log for `Vanta gateway routing to the API`.
 
 ## 2. Create MySQL
 
