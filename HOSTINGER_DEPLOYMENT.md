@@ -1,12 +1,12 @@
 # Vanta on Hostinger
 
-Vanta runs one public Express process for `/api/*` and `/v2/*`; it starts the existing Next.js frontend with `next start` on a private loopback port. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`. Internal database IDs are `CHAR(36)`; Polymarket condition IDs are stored separately as external keys.
+Hostinger monitors `server.js` for a direct `listen()` call. It opens the public Express gateway immediately, applies MySQL migrations, then starts the Vanta API on private loopback port 3002 and the Next.js frontend on private loopback port 3001. The gateway returns 503 until both the API health check and frontend are ready. `npm run build` remains `next build`. The API uses MySQL; market quotes and charts continue to use `yahoo-finance2`. Internal database IDs are `CHAR(36)`; Polymarket condition IDs are stored separately as external keys.
 
 ## 1. Prepare the repository and hosting plan
 
 The release source is on the GitHub branch `release/vanta-production`, and a source-only upload is staged at `private-migration/vanta-hostinger-source.zip`. Check the signed-in Hostinger account for an active plan that supports Node.js web apps, then select an existing site or create one on the plan. Use a free Hostinger subdomain if no domain has been chosen. Deploy the source archive with the Hostinger Connector, choose Node.js **22**, and configure `server.js` as the entry file. The archive contains no build output or private data. Hostinger's [Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) also describes connecting GitHub later for deployment on push; an archive deployment alone does not enable that link.
 
-In build settings, use the project root, `npm run build`, and **`server.js` as the entry file** (or `npm start` if the panel asks for a start command). If automatic Node.js detection selects the Next.js entry point, override the build settings before starting the build. Keep the Next build output `.next` available to the app; do not use a static export. Check the first build log to confirm the `next build` and `Vanta Express API listening` messages.
+In build settings, use the project root, `npm run build`, and **`server.js` as the entry file** (or `npm start` if the panel asks for a start command). If automatic Node.js detection selects the Next.js entry point, override the build settings before starting the build. Keep the Next build output `.next` available to the app; do not use a static export. Check the build log for `next build`, then the runtime log for `Vanta gateway ready`.
 
 ## 2. Create MySQL
 
@@ -55,13 +55,13 @@ In **Websites → Dashboard → Cron Jobs**, select **Custom** for each job. Hos
 | `predictions` | `10 13 * * *` | `/api/cron/predictions` |
 | `predictions-settle` | `15 13 * * *` | `/api/cron/predictions-settle` |
 
-Each cron command calls `node src/cron-handler.js JOB` from the deployed project directory. That script sends `Authorization: Bearer <CRON_SECRET>` to `APP_URL` and exits nonzero on failure. Cron jobs may not inherit the web app's environment. Put `APP_URL` and `CRON_SECRET` assignments in a private `/home/USERNAME/vanta-cron.env` file outside the repository and web root, and set its permissions to `600`. Use the hPanel Custom command below for each job, replacing `USERNAME`, `DOMAIN`, and `tick` with the actual hosting values and job argument:
+The Node entry process writes `APP_URL` and `CRON_SECRET` to a private `/home/USERNAME/vanta-cron.env` file on startup and sets its permissions to `600`. Cron jobs do not need to inherit the app's environment. Use the hPanel Custom command below for each job, replacing `USERNAME` and `tick` with the actual hosting values and job argument:
 
 ```sh
-bash -lc 'set -a; . /home/USERNAME/vanta-cron.env; set +a; cd /home/USERNAME/domains/DOMAIN/nodejs && node src/cron-handler.js tick'
+bash -lc 'set -a; . /home/USERNAME/vanta-cron.env; set +a; curl --fail --silent --show-error -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/tick"'
 ```
 
-Do not paste the secret into GitHub or into this document. Check the Cron Jobs output after the first run. If the managed cron environment cannot run Node from the deployed app directory, use a custom `curl` command with the same Bearer header and private environment file. Hostinger documents the [managed Node app directory](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/) and [Custom cron jobs](https://www.hostinger.com/support/1583465-how-to-set-up-a-cron-job-at-hostinger/).
+Do not paste the secret into GitHub or into this document. Check the Cron Jobs output after the first run. Hostinger documents [Custom cron jobs](https://www.hostinger.com/support/1583465-how-to-set-up-a-cron-job-at-hostinger/).
 
 The cron endpoints reject requests when `CRON_SECRET` is absent or the Bearer token is wrong. Set the same secret for the app and cron jobs.
 
