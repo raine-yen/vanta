@@ -43,7 +43,9 @@ async function writeCronEnvironment() {
     console.warn("Cron environment not written: APP_URL or CRON_SECRET is missing");
     return;
   }
-  const path = join(homedir(), "vanta-cron.env");
+  const accountHome = homedir().match(/^\/home\/[^/]+/)?.[0];
+  if (!accountHome) throw new Error("Cannot locate a private Hostinger account directory for cron");
+  const path = join(accountHome, "vanta-cron.env");
   await writeFile(path, `APP_URL=${shellQuote(process.env.APP_URL)}\nCRON_SECRET=${shellQuote(process.env.CRON_SECRET)}\n`, { mode: 0o600 });
   await chmod(path, 0o600);
   console.log(`Private cron environment ready at ${path}`);
